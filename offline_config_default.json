@@ -1,6 +1,16 @@
 {
-    "video_path": "",
-    "skip_frames": 1,
-    "model_path": ""
+    "video_cfg": {
+        "video_path": "",
+        "skip_frames": 1,
+        "model_path": ""
+    },
+
+    "detection_cfg": {
+        "x_resize": 320,
+        "y_resize": 320,
+        "class_filter": -1,
+        "classif_th": 0.5,
+        "filter_on_detect_nr": -1
+    }
 }
   

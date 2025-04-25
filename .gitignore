@@ -1,4 +1,5 @@
-Computer_vision/ssd_mobilenet_v2_320x320_coco17_tpu-8
+computer_vision/ssd_mobilenet_v2_320x320_coco17_tpu-8
 samples
 venv
 offline_config.json
+*.pyc

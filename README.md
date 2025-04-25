@@ -1,2 +1,2 @@
 # RoboTracking
-Tracking of a ping pong ball through a robotic manipulator
+Tracking of a sport ball through a robotic manipulator
