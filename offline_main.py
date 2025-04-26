@@ -17,6 +17,7 @@ import time
 import tensorflow as tf
 import numpy as np
 import json
+import datetime
 from pathlib import Path
 
 from utilities.computer_vision_utils import *
@@ -42,6 +43,17 @@ def robot_state_init():
     state_t0 = 0
     return state_t0
 
+
+# === HELPER FCN IN CASE OF OUTPUT WRITING ===
+def draw_red_cross(frame, position, size=15, thickness=3):
+    """
+    Draws a red 'X' centered at 'position' on the frame.
+    """
+    x, y = position
+    color = (0, 0, 255)  # Red color in BGR
+    cv2.line(frame, (x - size, y - size), (x + size, y + size), color, thickness)
+    cv2.line(frame, (x - size, y + size), (x + size, y - size), color, thickness)
+    return frame
 # ===================================
 # ===================================
 
@@ -55,6 +67,8 @@ with open("offline_config.json", "r") as f:
 VIDEO_PATH  = config["video_cfg"]["video_path"]      # Path to the local video
 SKIP_FRAMES = config["video_cfg"]["skip_frames"]     # Number of frames to skip between each inference
 MODEL_PATH  = config["video_cfg"]["model_path"]      # Path to the saved TensorFlow model
+FLAG_OUTPUT_SAVE  = config["video_cfg"]["enable_output_video_saving"]   # flag for output video saving enable
+OUTPUT_VIDEO_PATH = config["video_cfg"]["output_video_path"]            # output video path
 
 X_TARGET_SIZE = config["detection_cfg"]["x_resize"]             # target x size based on model training
 Y_TARGET_SIZE = config["detection_cfg"]["y_resize"]             # target y size based on model training
@@ -63,6 +77,9 @@ CLASSIFIC_TH  = config["detection_cfg"]["classif_th"]           # treshold on cl
 FILTER_OBJ_NR = config["detection_cfg"]["filter_on_detect_nr"]  # filter on detected object number with higher score
 
 classification_filter_param = [CLASS_FILTER, CLASSIFIC_TH, FILTER_OBJ_NR]
+
+timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+OUTPUT_VIDEO_PATH = f"{OUTPUT_VIDEO_PATH}_{timestamp_str}.mp4"
 
 # === MODEL LOADING ===
 current_folder = Path(__file__).parent.resolve() # Get the directory of the current script
@@ -85,6 +102,18 @@ def main():
     if not cap.isOpened():
         print("Error opening video.")
         return
+    
+
+    #################### FOR OUTPUT VIDEO SAVING PURPOSE ONLY #######################
+    if FLAG_OUTPUT_SAVE:
+        # === VIDEO WRITER INITIALIZATION ===
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # or 'XVID' for .avi
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        out = cv2.VideoWriter(OUTPUT_VIDEO_PATH, fourcc, fps, (frame_width, frame_height))
+    #################################################################################
+
 
     frame_count = 0
     print("Starting video loop...")
@@ -113,20 +142,37 @@ def main():
             # get single object to be tracked (the first one box is supposed to be the higher score for the class of interest)
             x_target, y_target = get_object_center_for_tracking(boxes_filt, h, w)
 
-            robot_updated_state = robot_control(robot_actual_state, x_target, y_target)
+        #################### FOR OUTPUT VIDEO SAVING PURPOSE ONLY #######################
+        if FLAG_OUTPUT_SAVE:
+            # === DRAWING RED 'X' IF TARGET VALID ===
+            if (x_target != -1) and (y_target != -1):
+                frame_gbr = draw_red_cross(frame_gbr, (x_target, y_target))
+        #################################################################################
+
+        if (x_target == -1 & y_target == -1):
+            # keep the actual robot state and do not move
+            robot_updated_state = robot_actual_state
 
         else:
-            # keep the actual robot state
-            robot_updated_state = robot_actual_state
+            # update robot state after movement
+            robot_updated_state = robot_control(robot_actual_state, x_target, y_target)
 
         robot_actual_state = robot_updated_state
         frame_count += 1
 
-        # # Slow down the loop slightly if needed to reduce CPU load
-        # time.sleep(0.01) # check if needed
+        #################### FOR OUTPUT VIDEO SAVING PURPOSE ONLY #######################
+        if FLAG_OUTPUT_SAVE:
+            # === WRITE THE FRAME ===
+            out.write(frame_gbr)
+        #################################################################################
 
     cap.release()
     print("Video processing complete.")
+
+    #################### FOR OUTPUT VIDEO SAVING PURPOSE ONLY #######################
+    if FLAG_OUTPUT_SAVE:
+        out.release()
+    #################################################################################
 
 if __name__ == "__main__":
     main()

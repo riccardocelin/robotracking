@@ -102,8 +102,8 @@ def get_object_center_for_tracking(boxes, h_orig_img, w_orig_img):
         endY   = int(box[2]*h_orig_img)
         endX   = int(box[3]*w_orig_img)
 
-        Y_center = int((startY-endY)/2) + startY
-        X_center = int((startX-endX)/2) + startX
+        Y_center = int((endY-startY)/2) + startY
+        X_center = int((endX-startX)/2) + startX
 
         object_center = [X_center, Y_center]
 

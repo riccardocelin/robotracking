@@ -1,8 +1,10 @@
 {
     "video_cfg": {
-        "video_path": "",
-        "skip_frames": 1,
-        "model_path": ""
+        "video_path": "samples/input_video.mp4",
+        "skip_frames": 0,
+        "model_path": "",
+        "enable_output_video_saving": true,
+        "output_video_path": "samples/output/output_video"
     },
 
     "detection_cfg": {
