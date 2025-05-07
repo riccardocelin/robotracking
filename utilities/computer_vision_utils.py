@@ -60,6 +60,10 @@ def object_detection_tflite_fcn(interpreter, tf_frame):
     input_data = tf_frame.numpy().astype(input_details[0]['dtype']) # uint8
 
     # Set input tensor
+    print("Expected input shape:", input_details[0]['shape'])
+    print("Actual input shape:", input_data.shape)
+    print("Expected input dtype:", input_details[0]['dtype'])
+    print("Actual input dtype:", input_data.dtype)
     interpreter.set_tensor(input_details[0]['index'], input_data)
 
     # Run inference
