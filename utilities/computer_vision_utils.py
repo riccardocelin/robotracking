@@ -73,7 +73,14 @@ def object_detection_tflite_fcn(interpreter, tf_frame):
     boxes = interpreter.get_tensor(output_details[0]['index'])[0]
     classes = interpreter.get_tensor(output_details[1]['index'])[0].astype(int)
     scores = interpreter.get_tensor(output_details[2]['index'])[0]
-    num_detections = int(interpreter.get_tensor(output_details[3]['index'])[0])
+
+    print("boxes shape:", boxes.shape)
+    print("classes shape:", classes.shape)
+    print("scores shape:", scores.shape)
+
+    # TODO score = 255 is unexpected
+
+    num_detections = int(interpreter.get_tensor(output_details[3]['index'])[0][0])
 
     return boxes, scores, classes, num_detections
 
