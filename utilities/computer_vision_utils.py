@@ -1,5 +1,6 @@
 import cv2
 import tensorflow as tf
+import numpy as np
 
 # === LOAD MODEL ===
 def load_tf_saved_model(model_path):
@@ -50,37 +51,40 @@ def object_detection_fcn(model, tf_frame):
     return boxes, scores, classes, num_detections
 
 
+# === TFLITE OUTPUT DEQUANTIZATION ===
+def dequantize(tensor, scale, zero_point):
+    return (tensor.astype(np.float32) - zero_point) * scale
+
+
 # === FRAME CLASSIFICATION TFLITE INTERPRETER ===
-def object_detection_tflite_fcn(interpreter, tf_frame):
+def object_detection_tflite_fcn(interpreter, input_data):
     # Get input & output details
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
 
     # Convert Tensor to NumPy (TFLite needs NumPy input)
-    input_data = tf_frame.numpy().astype(input_details[0]['dtype']) # uint8
+    #input_data = tf_frame.numpy().astype(input_details[0]['dtype']) # uint8
 
     # Set input tensor
-    print("Expected input shape:", input_details[0]['shape'])
-    print("Actual input shape:", input_data.shape)
-    print("Expected input dtype:", input_details[0]['dtype'])
-    print("Actual input dtype:", input_data.dtype)
     interpreter.set_tensor(input_details[0]['index'], input_data)
 
     # Run inference
     interpreter.invoke()
 
     # Get output tensors
-    boxes = interpreter.get_tensor(output_details[0]['index'])[0]
-    classes = interpreter.get_tensor(output_details[1]['index'])[0].astype(int)
-    scores = interpreter.get_tensor(output_details[2]['index'])[0]
+    boxes_output = output_details[4]
+    scale, zero_point = boxes_output['quantization']
+    boxes = dequantize(interpreter.get_tensor(boxes_output['index'])[0], scale, zero_point)
 
-    print("boxes shape:", boxes.shape)
-    print("classes shape:", classes.shape)
-    print("scores shape:", scores.shape)
+    classes_output = output_details[5]
+    scale, zero_point = classes_output['quantization']
+    classes = dequantize(interpreter.get_tensor(classes_output['index'])[0], scale, zero_point).astype(int)
 
-    # TODO score = 255 is unexpected
+    scores_output = output_details[6]
+    scale, zero_point = scores_output['quantization']
+    scores = dequantize(interpreter.get_tensor(scores_output['index'])[0], scale, zero_point)
 
-    num_detections = int(interpreter.get_tensor(output_details[3]['index'])[0][0])
+    num_detections = boxes.shape[0]
 
     return boxes, scores, classes, num_detections
 

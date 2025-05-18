@@ -1,10 +1,10 @@
 {
     "video_cfg": {
-        "video_path": "samples/input_video.mp4",
+        "video_path": "computer_vision/samples/input_video.mp4",
         "skip_frames": 0,
         "model_path": "computer_vision/ssd_mobilenet_v2_320x320_coco17_tpu-8/saved_model",
         "enable_output_video_saving": true,
-        "output_video_path": "samples/output/output_video"
+        "output_video_path": "computer_vision/samples/output/output_video"
     },
 
     "detection_cfg": {

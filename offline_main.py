@@ -19,6 +19,7 @@ import numpy as np
 import json
 import datetime
 from pathlib import Path
+import time
 
 from utilities.computer_vision_utils import *
 # ====================================
@@ -133,8 +134,11 @@ def main():
             tf_frame_resized_uint8_batched, tf_frame_resized_float32 = prepro_frame(frame_rgb, x_size = X_TARGET_SIZE, y_size = Y_TARGET_SIZE)
 
             # get raw classification from mobilenet model
+            start_t = time.time()
             boxes, scores, classes, num_detections = object_detection_fcn(model, tf_frame_resized_uint8_batched)
-            
+            end_t = time.time()
+            print(end_t-start_t)
+
             # filter and order raw classification from mobilenet model based on cfg params
             classification_output = [boxes, scores, classes, num_detections]
             boxes_filt, scores_filt, classes_filt, num_detections_filt = filter_on_detection_nr(classification_output, classification_filter_param)
