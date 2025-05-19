@@ -26,7 +26,7 @@ import time
 from utilities.computer_vision_utils import *
 from utilities.robot_control_utils import *
 
-EDGE_DEV_FLAG = False
+EDGE_DEV_FLAG = True
 #EDGE_DEV_FLAG = True
 if (EDGE_DEV_FLAG):
     from tflite_runtime.interpreter import Interpreter

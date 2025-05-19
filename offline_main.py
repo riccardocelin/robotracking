@@ -98,8 +98,10 @@ def main():
     # set robot init state
     robot_actual_state = robot_state_init()
     robot_updated_state = robot_actual_state
-
-    cap = cv2.VideoCapture(VIDEO_PATH)
+    
+    input_video_path = str(current_folder/VIDEO_PATH)
+    print(input_video_path)
+    cap = cv2.VideoCapture(input_video_path)
     if not cap.isOpened():
         print("Error opening video.")
         return
@@ -121,6 +123,9 @@ def main():
 
     while cap.isOpened():
         ret, frame_gbr = cap.read()
+        
+        if frame_count == 50:
+            break
         
         if not ret:
             break  # End of video
