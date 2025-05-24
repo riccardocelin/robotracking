@@ -1,28 +1,31 @@
-# setup.py
-# run the script to create the exact same virtual environment as specified in requirements.txt
-
 import os
 import platform
+import shutil
 import subprocess
 import sys
 
+def delete_venv():
+    if os.path.exists("venv"):
+        print("-- Removing existing virtual environment...")
+        shutil.rmtree("venv")
+
 def create_venv():
-    print("-- Creating virtual environment...")
-    subprocess.run([sys.executable, "-m", "venv", "venv"])
+    print("-- Creating virtual environment with system site packages...")
+    subprocess.run([sys.executable, "-m", "venv", "--system-site-packages", "venv"], check=True)
 
 def activate_and_install():
-    print("-- Installing dependencies...")
+    print("-- Installing dependencies from requirements.txt...")
 
-    # OS-specific activation and install
     if platform.system() == "Windows":
-        # Activate the venv and install via a subprocess
-        subprocess.run(r"venv\Scripts\python.exe -m pip install --upgrade pip", shell=True)
-        subprocess.run(r"venv\Scripts\pip.exe install -r requirements.txt", shell=True)
+        subprocess.run(r"venv\Scripts\python.exe -m pip install --upgrade pip", shell=True, check=True)
+        subprocess.run(r"venv\Scripts\pip.exe install -r requirements.txt", shell=True, check=True)
     else:
-        # Unix/Mac
-        subprocess.run("source venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt", shell=True, executable="/bin/bash")
+        # Unix/Linux (Raspberry Pi)
+        command = "source venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt"
+        subprocess.run(command, shell=True, executable="/bin/bash", check=True)
 
 def main():
+    delete_venv()
     create_venv()
     activate_and_install()
     print("-- Setup complete. Virtual environment ready.")
