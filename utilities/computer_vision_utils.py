@@ -38,6 +38,7 @@ def object_detection_fcn(model, tf_frame):
 
      # Run inference
     model_infer_fcn = model.signatures['serving_default']
+    
     output_dict = model_infer_fcn(tf_frame)
 
     # Number of detections
