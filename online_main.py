@@ -52,7 +52,7 @@ def draw_red_cross(frame, position, size=15, thickness=3):
     Draws a red 'X' centered at 'position' on the frame.
     """
     x, y = position
-    color = (0, 0, 255)  # Red color in BGR
+    color = (255, 0, 0)  # Red color in BGR
 
     # Check and fix common OpenCV incompatibilities
     if not isinstance(frame, np.ndarray):
