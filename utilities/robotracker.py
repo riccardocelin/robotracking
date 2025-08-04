@@ -30,11 +30,18 @@ class RoboTracker:
         # detection settings
         self.detection.__x_target_size = X_TARGET_SIZE
         self.detection.__y_target_size = Y_TARGET_SIZE
+        self.detection.x_target_coord = -1
+        self.detection.y_target_coord = -1
+        #self.detection.x_last_coord = -1
+        #self.detection.y_last_coord = -1
         self.detection.classification_filter_param = []
-        self.detection.filter_thresh = 5
+        self.detection.flutt_filt_thresh = 5
+        self.detection.LP_filt_tresh = 0.5
         self.detection.target_detected_on_act_frame = None
         self.detection.model = self.__get_cv_model(CV_MODEL_PRJ_PATH)
         self.detection.camera = self.__init_Pi_camera()
+        self.detection.frame_orig_h = -1
+        self.detection.frame_orig_w = -1
 
     #########################
     # Computer vision methods
@@ -47,7 +54,7 @@ class RoboTracker:
         return tf.saved_model.load(str(model_full_path))
 
     # === INITIALIZE CAMERA ===
-    def init_Pi_camera(FPS = 30):
+    def init_Pi_camera(self, FPS = 30):
 
         picam2 = Picamera2()
         config = picam2.create_video_configuration(
@@ -60,6 +67,17 @@ class RoboTracker:
 
         return picam2
 
+    def get_camera_frame(self):
+        frame_rgb = self.camera.capture_array()
+        
+        frame = frame_rgb
+        if frame.shape[-1] == 4:
+            frame = frame[..., :3]  # remove eventual transparency from picam2 module
+
+        # store initial frame shape
+        self.detection.frame_orig_h, self.detection.frame_orig_w, _ = frame.shape
+
+        return frame
 
     # === FRAME PREPROCESSING ===
     def frame_cv_to_tf_colours(frame_bgr):
@@ -87,12 +105,15 @@ class RoboTracker:
 
 
     # === FRAME CLASSIFICATION ===
-    def object_detection_fcn(model, tf_frame):
+    def object_detection_fcn(self, model, frame):
+
+        # frame preprocessing for TF inference
+        tf_frame_resized_uint8_batched, tf_frame_resized_float32 = self.prepro_frame(frame)
 
         # Run inference
         model_infer_fcn = model.signatures['serving_default']
         
-        output_dict = model_infer_fcn(tf_frame)
+        output_dict = model_infer_fcn(tf_frame_resized_uint8_batched)
 
         # Number of detections
         num_detections = int(output_dict['num_detections'][0])
@@ -165,7 +186,7 @@ class RoboTracker:
 
 
     # === HELPER FCN IN CASE OF OUTPUT WRITING ===
-    def draw_cross(frame, position, size=15, thickness=3, color = (255, 0, 0)):
+    def draw_cross_on_frame(frame, position, size=15, thickness=3, color = (255, 0, 0)):
         """
         Draws a red 'X' centered at 'position' on the frame.
         """
@@ -216,19 +237,21 @@ class RoboTracker:
         self.target_coord = filt1_coord
 
         # Apply low-pass filter to smooth coordinate fluctuations
-        filt2_coord = self._detection_filter(act_coord)
+        filt2_coord = self.detection_filter(act_coord)
 
         return filt2_coord, servo_has_to_move
+    
+    """
+    def get_prev_target_coord(self):
+        return (self.detection.x_last_coord, self.detection.y_last_coord)
 
 
-    def _detection_filter(self, act_coord):
-        """
-        Applies a low-pass filter to the detected coordinates to reduce noise.
-        """
+    def detection_filter(self):
+        #Applies a low-pass filter to the detected coordinates to reduce noise.
         alpha = 0.5
 
         x_prev, y_prev = self.target_coord
-        x_act, y_act = act_coord
+        x_act, y_act = self.last_coord
 
         x_new = alpha * x_act + (1 - alpha) * x_prev
         y_new = alpha * y_act + (1 - alpha) * y_prev
@@ -236,12 +259,12 @@ class RoboTracker:
         return (x_new, y_new)
 
 
-    def _detection_flutt_limiter(self, act_valid_coord, prev_valid_coord, thresh):
-        """
-        Limits small fluctuations (flutter) in coordinates.
-        Keeps the previous value if the change is below a given threshold.
-        """
-        x_act, y_act = act_valid_coord
+    def detection_flutt_limiter(self, act_valid_coord, prev_valid_coord, thresh):
+        # Limits small fluctuations (flutter) in coordinates.
+        # Keeps the previous value if the change is below a given threshold.
+
+        x_act = self.detection.x_target_coord
+        y_act = self.detection.x_target_coord
         x_prev, y_prev = prev_valid_coord
 
         x_diff = abs(x_act - x_prev)
@@ -252,6 +275,7 @@ class RoboTracker:
 
         return (x_new, y_new)
 
+    """
     #########################
 
     #############################
