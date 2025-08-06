@@ -14,9 +14,6 @@
 # === IMPORT PY PKGS AND FUNCTIONS ===
 import cv2
 import time
-import numpy as np
-import json
-import datetime
 
 from utilities.robotracker import RoboTracker
 
@@ -25,7 +22,7 @@ from utilities.robotracker import RoboTracker
 # === GLOBAL VAR DEFINITION ===
 
 MODEL_PATH  = "computer_vision/ssd_mobilenet_v2_320x320_coco17_tpu-8/TFLite/prepro_model_nodynamicinput/saved_model" # Path to the saved TensorFlow model
-DEBUG  = True   # flag for output video display enable
+DEBUG  = True   # flag for output video display enable (online debug purpose)
 
 # =============================
 # =============================
@@ -45,36 +42,31 @@ def main():
 
         # get raw classification from cv model
         start_t = time.time()
-        boxes, scores, classes, num_detections = tracker.object_detection_fcn(tracker.model, frame)
-        end_t = time.time()
-        print(f"Inference time: {end_t - start_t:.3f} sec")
 
-        # filter and order raw classification from mobilenet model based on cfg params
-        classification_output = [boxes, scores, classes, num_detections]
-        boxes_filt, scores_filt, classes_filt, num_detections_filt = tracker.filter_on_detection_nr(classification_output, tracker.classification_filter_param)
-        
-        ##### !!!!!!!!!
-        # TODO x_target, y_target diventano attributi di classe sotto self.target.x_target ecc e non vengono neanche date in output dalla funzione ma vengono cambiati intenamente gli attributi
-        # get single object to be tracked (the first one box is supposed to be the higher score for the class of interest)
-        . h, w sono già attributi
-        x_target, y_target = tracker.get_object_center_for_tracking(boxes_filt, h, w)
-        print(f"Object coordinates x,y: {x_target}, {y_target}")
+        tracker.object_detection_fcn(tracker.model, frame)
+        x_actual_target, y_actual_target = tracker.get_actual_target_coords()
+        print(f"Object coordinates x,y: {x_actual_target}, {y_actual_target}")
+
+        end_t = time.time()
+        print(f"Inference time for actual frame: {end_t - start_t:.3f} sec")
 
         ########################## FOR DEBUG PURPOSE ONLY ###############################
         if DEBUG:
-
             # raw object target found
-            if (x_target != -1) and (y_target != -1):
-                frame = tracker.draw_cross_on_frame(frame, (x_target, y_target), (255,0,0))
+            if tracker.is_target_detected_on_frame():
+                frame = tracker.draw_cross_on_frame(frame, (255,0,0))
         
             cv2.imshow("Preview", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)) # cv2 requires bgr frames
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         #################################################################################
 
-        if (x_target == -1 & y_target == -1):
-            # keep the actual robot state and do not move
-            tracker.robot_updated_state = tracker.robot_actual_state
+        if (tracker.is_target_detected_on_frame() == False):
+            # keep the actual robot state (and do not move? or continue moving if will work on separated threads)
+            # tracker.robot_updated_state = tracker.robot_actual_state
+
+            # TO DO
+            pass
 
         else:
             # update robot state after movement
@@ -87,7 +79,7 @@ def main():
             pass
 
     # Clean up
-    tracker.camera.close()
+    tracker.__camera.close()
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
