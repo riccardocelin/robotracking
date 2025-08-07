@@ -14,6 +14,7 @@
 # === IMPORT PY PKGS AND FUNCTIONS ===
 import cv2
 import time
+import builtins
 
 from utilities.robotracker import RoboTracker
 
@@ -22,7 +23,7 @@ from utilities.robotracker import RoboTracker
 # === GLOBAL VAR DEFINITION ===
 
 MODEL_PATH  = "computer_vision/ssd_mobilenet_v2_320x320_coco17_tpu-8/TFLite/prepro_model_nodynamicinput/saved_model" # Path to the saved TensorFlow model
-DEBUG  = True   # flag for output video display enable (online debug purpose)
+builtins.DEBUG  = True   # flag for output video display enable (online debug purpose)
 
 # =============================
 # =============================
@@ -44,14 +45,17 @@ def main():
         start_t = time.time()
 
         tracker.object_detection_fcn(tracker.model, frame)
-        x_actual_target, y_actual_target = tracker.get_actual_target_coords()
-        print(f"Object coordinates x,y: {x_actual_target}, {y_actual_target}")
 
         end_t = time.time()
-        print(f"Inference time for actual frame: {end_t - start_t:.3f} sec")
 
         ########################## FOR DEBUG PURPOSE ONLY ###############################
-        if DEBUG:
+        if builtins.DEBUG:
+            print(f"### Inference time for actual frame: {end_t - start_t:.3f} sec")
+            x, y = tracker.get_actual_target_coords(GET_RAW=True)
+            print(f"### Raw target coordinates x,y: {x}, {y}")
+            x, y = tracker.get_actual_target_coords(GET_RAW=False)
+            print(f"### Filtered target coordinates x,y: {x}, {y}")
+
             # raw object target found
             if tracker.is_target_detected_on_frame():
                 frame = tracker.draw_cross_on_frame(frame, (255,0,0))
@@ -77,6 +81,8 @@ def main():
             
             # TO DO
             pass
+
+        tracker.reset_actual_target_coord() # clean actual state for the next frame (does not reset pstep target coords)
 
     # Clean up
     tracker.__camera.close()

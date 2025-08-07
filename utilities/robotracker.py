@@ -5,6 +5,7 @@ from pathlib import Path
 import time
 from picamera2 import Picamera2
 from types import SimpleNamespace
+import builtins
 
 class RoboTracker:
     def __init__(self, CV_MODEL_PRJ_PATH = "",
@@ -36,8 +37,10 @@ class RoboTracker:
         self.detection.__y_target_size = Y_TARGET_SIZE
         self.detection.__model = self.__get_cv_model(CV_MODEL_PRJ_PATH)
         self.detection.__camera = self.__init_Pi_camera()
-        self.detection.x_actual_target = -1
-        self.detection.y_actual_target = -1
+        self.detection.x_actual_raw_target = -1
+        self.detection.y_actual_raw_target = -1
+        self.detection.x_actual_filt_target = -1
+        self.detection.y_actual_filt_target = -1
         self.detection.classification_filter_param = [CLASS_FILTER, CLASSIFIC_TH, FILTER_OBJ_NR]
         self.detection.flutt_filt_thresh = 5
         self.detection.LP_filt_tresh = 0.5
@@ -133,18 +136,33 @@ class RoboTracker:
         self.get_object_center_for_tracking()
 
 
-    def get_actual_target_coords(self):
-        return (self.detection.x_actual_target, self.detection.y_actual_target)
+    def get_actual_target_coords(self, GET_RAW = True):
+        if GET_RAW:
+            return (self.detection.x_actual_raw_target, self.detection.y_actual_raw_target)
+        else:
+            return (self.detection.x_actual_filt_target, self.detection.y_actual_filt_target)
+        
+        
+    def set_actual_target_coords(self, x=-1, y=-1, SET_RAW = True):
+        if SET_RAW:
+            self.detection.x_actual_raw_target = x, self.detection.y_actual_raw_target = y
+        else:
+            self.detection.x_actual_filt_target = x, self.detection.y_actual_filt_target = y
 
 
-    def get_actual_raw_detection_results(self):
-        # detection.actual_raw_results = [boxes, scores, classes, num_detections]
-        return self.detection.actual_raw_results
+    def reset_actual_target_coord(self, x=-1, y=-1):
+        self.set_actual_target_coords(SET_RAW = True)
+        self.set_actual_target_coords(SET_RAW = False)
+
     
-    
-    def get_actual_filt_detection_results(self):
-        # detection.actual_filt_results = [boxes_filt, scores_filt, classes_filt, num_detections_filt]
-        return self.detection.actual_filt_results
+
+    def get_actual_detection_results(self, GET_RAW = True):
+        if GET_RAW:
+            # detection.actual_raw_results = [boxes, scores, classes, num_detections]
+            return self.detection.actual_raw_results
+        else:
+            # detection.actual_filt_results = [boxes_filt, scores_filt, classes_filt, num_detections_filt]
+            return self.detection.actual_filt_results
     
 
     def get_classification_params(self):
@@ -153,20 +171,14 @@ class RoboTracker:
 
 
     def is_target_detected_on_frame(self):
-        x,y = self.get_actual_target_coords()
+        x,y = self.get_actual_target_coords(GET_RAW = True)
         return (x != -1 and y != -1)
-
-    def reset_actual_detection_results(self):
-        self.detection.x_actual_target = -1
-        self.detection.y_actual_target = -1
-        self.detection.actual_raw_results = [-1,-1,-1,-1]
-        self.detection.actual_filt_results = [-1,-1,-1,-1]
         
 
     # === CLASSIFICATION RESULTS FILTERING ===
     def filter_on_detection_nr(self):
 
-        boxes, scores, classes, num_detections = self.get_actual_raw_detection_results()
+        boxes, scores, classes, num_detections = self.get_actual_detection_results(GET_RAW = True)
 
         # check for class_filter
         # check for scores
@@ -207,7 +219,7 @@ class RoboTracker:
         h_orig_img = self.detection.frame_orig_h
         w_orig_img = self.detection.frame_orig_w
 
-        boxes_filt, _, _, _ = self.get_actual_filt_detection_results()
+        boxes_filt, _, _, _ = self.get_actual_detection_results(GET_RAW=False)
 
         if not boxes_filt:
             object_center = [-1, -1]
@@ -223,18 +235,23 @@ class RoboTracker:
 
             object_center = [X_center, Y_center]
 
-            self.detection.x_actual_target = object_center[0]
-            self.detection.y_actual_target = object_center[1]
+            # filtering coord
+            self.process_coordinates()
+
+        self.set_actual_target_coords(object_center[0], object_center[1], SET_RAW=True)
+
 
 
     # === HELPER FCN IN CASE OF OUTPUT WRITING ===
-    def draw_cross_on_frame(self, frame, color = (255, 0, 0), size=15, thickness=3):
+    def draw_cross_on_frame(self, frame, coords_array = [(-1,-1)], color_array = [(255, 0, 0)], size=15, thickness=3):
         """
         Draws a coloured 'X' centered at 'position' on the frame.
         """
-        x, y = self.get_actual_target_coords()
 
         if (self.is_target_detected_on_frame() == False):
+            return frame
+        
+        if (len(coords_array) != len(color_array)):
             return frame
 
         #color = (255, 0, 0)  # Red color in BGR
@@ -250,24 +267,28 @@ class RoboTracker:
         height, width = frame.shape[:2]
 
         # Clamp coordinates to avoid drawing outside image bounds
-        x_min = max(x - size, 0)
-        y_min = max(y - size, 0)
-        x_max = min(x + size, width - 1)
-        y_max = min(y + size, height - 1)
 
-        cv2.line(frame, (x_min, y_min), (x_max, y_max), color, thickness)
-        cv2.line(frame, (x_min, y_max), (x_max, y_min), color, thickness)
+        for i in range(len(coords_array)):
+
+            color = color_array[i]
+            x, y = coords_array[i]
+
+            x_min = max(x - size, 0)
+            y_min = max(y - size, 0)
+            x_max = min(x + size, width - 1)
+            y_max = min(y + size, height - 1)
+
+            cv2.line(frame, (x_min, y_min), (x_max, y_max), color, thickness)
+            cv2.line(frame, (x_min, y_max), (x_max, y_min), color, thickness)
 
         return frame
 
-    """
+
     def process_coordinates(self, act_coord):
-
+        """
         Processes the detected coordinates by applying a low-pass filter
-        and a flutter limiter. Returns:
-            - the filtered coordinates
-            - a boolean flag indicating if the servos need to move
-
+        and a flutter limiter.
+        """
 
         # Apply flutter limiter to ignore small changes below threshold
         filt1_coord = self._detection_flutt_limiter(
@@ -286,7 +307,25 @@ class RoboTracker:
         filt2_coord = self.detection_filter(act_coord)
 
         return filt2_coord, servo_has_to_move
-    """
+
+
+    def __detection_flutt_limiter(self):
+        # Limits small fluctuations (flutter) in coordinates.
+        # Keeps the previous value if the change is below a given threshold.
+
+        x_act, y_act = self.get_actual_target_coords(GET_RAW=True)
+        x_prev, y_prev = get_prev_target_coords(GET_RAW=True)
+
+        x_diff = abs(x_act - x_prev)
+        y_diff = abs(y_act - y_prev)
+
+        x_new = x_act if x_diff > self.detection.flutt_filt_thresh else x_prev
+        y_new = y_act if y_diff > self.detection.flutt_filt_thresh else y_prev
+
+        if builtins.DEBUG: print("### flutter filter has been applied")
+
+        self.x_actual_raw  =
+
     
     """
     def get_prev_target_coord(self):
@@ -306,21 +345,7 @@ class RoboTracker:
         return (x_new, y_new)
 
 
-    def detection_flutt_limiter(self, act_valid_coord, prev_valid_coord, thresh):
-        # Limits small fluctuations (flutter) in coordinates.
-        # Keeps the previous value if the change is below a given threshold.
 
-        x_act = self.detection.x_target_coord
-        y_act = self.detection.x_target_coord
-        x_prev, y_prev = prev_valid_coord
-
-        x_diff = abs(x_act - x_prev)
-        y_diff = abs(y_act - y_prev)
-
-        x_new = x_act if x_diff > thresh else x_prev
-        y_new = y_act if y_diff > thresh else y_prev
-
-        return (x_new, y_new)
 
     
     #########################
