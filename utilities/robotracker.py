@@ -41,6 +41,10 @@ class RoboTracker:
         self.detection.y_actual_raw_target = -1
         self.detection.x_actual_filt_target = -1
         self.detection.y_actual_filt_target = -1
+        self.detection.x_pstep_raw_target = -1
+        self.detection.y_pstep_raw_target = -1
+        self.detection.x_pstep_filt_target = -1
+        self.detection.y_pstep_filt_target = -1
         self.detection.classification_filter_param = [CLASS_FILTER, CLASSIFIC_TH, FILTER_OBJ_NR]
         self.detection.flutt_filt_thresh = 5
         self.detection.LP_filt_tresh = 0.5
@@ -149,6 +153,17 @@ class RoboTracker:
         else:
             self.detection.x_actual_filt_target = x, self.detection.y_actual_filt_target = y
 
+    def get_pstep_target_coords(self, GET_RAW = True):
+        if GET_RAW:
+            return (self.detection.x_pstep_raw_target, self.detection.y_pstep_raw_target)
+        else:
+            return (self.detection.x_pstep_filt_target, self.detection.y_pstep_filt_target)
+    
+    def set_pstep_target_coords(self, x=-1, y=-1, SET_RAW = True):
+        if SET_RAW:
+            self.detection.x_pstep_raw_target = x, self.detection.y_pstep_raw_target = y
+        else:
+            self.detection.x_pstep_filt_target = x, self.detection.y_pstep_filt_target = y
 
     def reset_actual_target_coord(self, x=-1, y=-1):
         self.set_actual_target_coords(SET_RAW = True)
@@ -240,6 +255,7 @@ class RoboTracker:
 
         self.set_actual_target_coords(object_center[0], object_center[1], SET_RAW=True)
 
+        self.process_coordinates() # coords filtering and pstep update
 
 
     # === HELPER FCN IN CASE OF OUTPUT WRITING ===
@@ -284,37 +300,29 @@ class RoboTracker:
         return frame
 
 
-    def process_coordinates(self, act_coord):
+    def process_coordinates(self):
         """
         Processes the detected coordinates by applying a low-pass filter
         and a flutter limiter.
         """
 
+        if not self.is_target_detected_on_frame(): return # no raw coords to be processed
+
         # Apply flutter limiter to ignore small changes below threshold
-        filt1_coord = self._detection_flutt_limiter(
-            filt1_coord,
-            self.target_coord,
-            self.detection_filter_thresh
-        )
+        self.__detection_flutt_limiter() # update raw detection and filter actual detection?
 
-        # Determine if servo needs to move (only if coordinates have changed)
-        servo_has_to_move = filt1_coord != self.target_coord
-
-        # Update the target coordinates
-        self.target_coord = filt1_coord
-
-        # Apply low-pass filter to smooth coordinate fluctuations
-        filt2_coord = self.detection_filter(act_coord)
-
-        return filt2_coord, servo_has_to_move
+        # Apply low pass filter on filt coords and update filt detection
+        self.__detection_filter()
 
 
     def __detection_flutt_limiter(self):
         # Limits small fluctuations (flutter) in coordinates.
         # Keeps the previous value if the change is below a given threshold.
 
+        if not self.is_target_detected_on_frame(): return # no raw coords to be processed
+
         x_act, y_act = self.get_actual_target_coords(GET_RAW=True)
-        x_prev, y_prev = get_prev_target_coords(GET_RAW=True)
+        x_prev, y_prev = self.get_pstep_target_coords(GET_RAW=True)
 
         x_diff = abs(x_act - x_prev)
         y_diff = abs(y_act - y_prev)
@@ -322,22 +330,21 @@ class RoboTracker:
         x_new = x_act if x_diff > self.detection.flutt_filt_thresh else x_prev
         y_new = y_act if y_diff > self.detection.flutt_filt_thresh else y_prev
 
-        if builtins.DEBUG: print("### flutter filter has been applied")
-
-        self.x_actual_raw  =
-
-    
-    """
-    def get_prev_target_coord(self):
-        return (self.detection.x_last_coord, self.detection.y_last_coord)
+        self.set_pstep_target_coords(x_act, y_act, SET_RAW=True)  # update pstep raw target value
+        self.set_actual_target_coords(x_new, y_new, SET_RAW=True) # update actual raw target value
 
 
-    def detection_filter(self):
+    def __detection_filter(self, alpha = 0.5):
         #Applies a low-pass filter to the detected coordinates to reduce noise.
-        alpha = 0.5
 
-        x_prev, y_prev = self.target_coord
-        x_act, y_act = self.last_coord
+        if not self.is_target_detected_on_frame(): return # no coords to be processed
+
+        (x_act, y_act) = self.get_pstep_target_coords(GET_RAW=False)
+        if (x_act, y_act) == (-1,-1):
+            self.set_pstep_target_coords(self.get_actual_target_coords(GET_RAW=True), SET_RAW=False) # set filt coords as raw target if it was at default
+
+        x_prev, y_prev = self.get_actual_target_coords(GET_RAW=True)
+        x_act, y_act = self.get_pstep_target_coords(GET_RAW=False)
 
         x_new = alpha * x_act + (1 - alpha) * x_prev
         y_new = alpha * y_act + (1 - alpha) * y_prev
@@ -350,6 +357,8 @@ class RoboTracker:
     
     #########################
 
+
+    """
     #############################
     # Tracker and control methods
 

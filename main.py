@@ -56,9 +56,9 @@ def main():
             x, y = tracker.get_actual_target_coords(GET_RAW=False)
             print(f"### Filtered target coordinates x,y: {x}, {y}")
 
-            # raw object target found
+            # raw object target found (draw raw center obj and filtered target coords)
             if tracker.is_target_detected_on_frame():
-                frame = tracker.draw_cross_on_frame(frame, (255,0,0))
+                frame = tracker.draw_cross_on_frame(frame, [tracker.get_actual_target_coords(GET_RAW=True), tracker.get_actual_target_coords(GET_RAW=False)], [(255,0,0), (0,255,0)])
         
             cv2.imshow("Preview", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)) # cv2 requires bgr frames
             if cv2.waitKey(1) & 0xFF == ord('q'):
