@@ -23,7 +23,7 @@ from utilities.robotracker import RoboTracker
 # === GLOBAL VAR DEFINITION ===
 
 MODEL_PATH  = "computer_vision/ssd_mobilenet_v2_320x320_coco17_tpu-8/TFLite/prepro_model_nodynamicinput/saved_model" # Path to the saved TensorFlow model
-builtins.DEBUG  = True   # flag for output video display enable (online debug purpose)
+builtins.DEBUG  = False   # flag for output video display enable (online debug purpose)
 
 # =============================
 # =============================
@@ -33,6 +33,7 @@ builtins.DEBUG  = True   # flag for output video display enable (online debug pu
 # === MAIN LOOP ===
 def main():
 
+    print(MODEL_PATH)
     tracker = RoboTracker(MODEL_PATH)
 
     print("Starting video loop...")
@@ -44,7 +45,7 @@ def main():
         # get raw classification from cv model
         start_t = time.time()
 
-        tracker.object_detection_fcn(tracker.model, frame)
+        tracker.object_detection_fcn(frame)
 
         end_t = time.time()
 

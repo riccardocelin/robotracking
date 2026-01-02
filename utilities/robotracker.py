@@ -60,7 +60,8 @@ class RoboTracker:
     def __get_cv_model(self, model_path_in_prj):
         print("-- computer vision model loading")
         current_folder = Path(__file__).parent.resolve()
-        model_full_path = current_folder / model_path_in_prj
+        model_full_path = current_folder.parent / model_path_in_prj
+
         return tf.saved_model.load(str(model_full_path))
 
     # === INITIALIZE CAMERA ===
@@ -78,7 +79,7 @@ class RoboTracker:
         return picam2
 
     def get_camera_frame(self):
-        frame_rgb = self.__camera.capture_array()
+        frame_rgb = self.detection.__camera.capture_array()
         
         frame = frame_rgb
         if frame.shape[-1] == 4:
@@ -90,14 +91,14 @@ class RoboTracker:
         return frame
 
     # === FRAME PREPROCESSING ===
-    def frame_cv_to_tf_colours(frame_bgr):
+    def frame_cv_to_tf_colours(self, frame_bgr):
         # Convert from BGR (OpenCV) to RGB (TensorFlow)
         frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         return frame_rgb
 
 
     # === FRAME PREPROCESSING ===
-    def prepro_frame(frame, x_size = 320, y_size = 320):
+    def prepro_frame(self, frame, x_size = 320, y_size = 320):
 
         # Decode image (this keeps dtype uint8)
         tf_frame_uint8 = tf.convert_to_tensor(frame, dtype=tf.uint8)
@@ -121,7 +122,7 @@ class RoboTracker:
         tf_frame_resized_uint8_batched, tf_frame_resized_float32 = self.prepro_frame(frame)
 
         # Run inference
-        model_infer_fcn = self.__model.signatures['serving_default']
+        model_infer_fcn = self.detection.__model.signatures['serving_default']
         
         output_dict = model_infer_fcn(tf_frame_resized_uint8_batched)
 
@@ -149,9 +150,11 @@ class RoboTracker:
         
     def set_actual_target_coords(self, x=-1, y=-1, SET_RAW = True):
         if SET_RAW:
-            self.detection.x_actual_raw_target = x, self.detection.y_actual_raw_target = y
+            self.detection.x_actual_raw_target = x
+            self.detection.y_actual_raw_target = y
         else:
-            self.detection.x_actual_filt_target = x, self.detection.y_actual_filt_target = y
+            self.detection.x_actual_filt_target = x
+            self.detection.y_actual_filt_target = y
 
     def get_pstep_target_coords(self, GET_RAW = True):
         if GET_RAW:
@@ -161,9 +164,11 @@ class RoboTracker:
     
     def set_pstep_target_coords(self, x=-1, y=-1, SET_RAW = True):
         if SET_RAW:
-            self.detection.x_pstep_raw_target = x, self.detection.y_pstep_raw_target = y
+            self.detection.x_pstep_raw_target = x
+            self.detection.y_pstep_raw_target = y
         else:
-            self.detection.x_pstep_filt_target = x, self.detection.y_pstep_filt_target = y
+            self.detection.x_pstep_filt_target = x
+            self.detection.y_pstep_filt_target = y
 
     def reset_actual_target_coord(self, x=-1, y=-1):
         self.set_actual_target_coords(SET_RAW = True)
@@ -309,10 +314,10 @@ class RoboTracker:
         if not self.is_target_detected_on_frame(): return # no raw coords to be processed
 
         # Apply flutter limiter to ignore small changes below threshold
-        self.__detection_flutt_limiter() # update raw detection and filter actual detection?
+        # self.__detection_flutt_limiter() # update raw detection and filter actual detection?
 
         # Apply low pass filter on filt coords and update filt detection
-        self.__detection_filter()
+        # self.__detection_filter()
 
 
     def __detection_flutt_limiter(self):
