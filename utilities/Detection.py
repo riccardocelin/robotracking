@@ -31,8 +31,6 @@ class Detection:
         self.y_actual_raw_target = -1
         self.x_actual_filt_target = -1
         self.y_actual_filt_target = -1
-        self.x_pstep_raw_target = -1
-        self.y_pstep_raw_target = -1
         self.x_pstep_filt_target = -1
         self.y_pstep_filt_target = -1
         self.classification_filter_param = [CLASS_FILTER, CLASSIFIC_TH, FILTER_OBJ_NR]
@@ -153,19 +151,12 @@ class Detection:
             self.y_actual_filt_target = y
             
 
-    def get_pstep_target_coords(self, GET_RAW = True):
-        if GET_RAW:
-            return (self.x_pstep_raw_target, self.y_pstep_raw_target)
-        else:
-            return (self.x_pstep_filt_target, self.y_pstep_filt_target)
+    def get_pstep_target_coords(self):
+        return (self.x_pstep_filt_target, self.y_pstep_filt_target)
     
-    def set_pstep_target_coords(self, x=-1, y=-1, SET_RAW = True):
-        if SET_RAW:
-            self.x_pstep_raw_target = x
-            self.y_pstep_raw_target = y
-        else:
-            self.x_pstep_filt_target = x
-            self.y_pstep_filt_target = y
+    def set_pstep_target_coords(self, x=-1, y=-1):
+        self.x_pstep_filt_target = x
+        self.y_pstep_filt_target = y
 
     def reset_actual_target_coord(self, x=-1, y=-1):
         self.set_actual_target_coords(SET_RAW = True)
@@ -296,7 +287,7 @@ class Detection:
 
         if self.filter_flag:
             # Apply flutter limiter to ignore small changes below threshold
-            self.__detection_flutt_limiter() # update raw detection and filter actual detection?
+            # self.__detection_flutt_limiter() # update raw detection and filter actual detection?
 
             # Apply low pass filter on filt coords and update filt detection
             self.__detection_filter()
@@ -309,7 +300,7 @@ class Detection:
         if not self.is_target_detected_on_frame(): return # no raw coords to be processed
 
         x_act, y_act = self.get_actual_target_coords(GET_RAW=True)
-        x_prev, y_prev = self.get_pstep_target_coords(GET_RAW=True)
+        x_prev, y_prev = self.get_pstep_target_coords()
 
         x_diff = abs(x_act - x_prev)
         y_diff = abs(y_act - y_prev)
@@ -317,23 +308,24 @@ class Detection:
         x_new = x_act if x_diff > self.flutt_filt_thresh else x_prev
         y_new = y_act if y_diff > self.flutt_filt_thresh else y_prev
 
-        self.set_pstep_target_coords(x_act, y_act, SET_RAW=True)  # update pstep raw target value
+        self.set_pstep_target_coords(x_act, y_act)  # update pstep raw target value
         self.set_actual_target_coords(x_new, y_new, SET_RAW=True) # update actual raw target value
 
 
-    def __detection_filter(self, alpha = 0.5):
+    def __detection_filter(self, w_actual = 0.7, w_prev = 0.3):
         #Applies a low-pass filter to the detected coordinates to reduce noise.
 
         if not self.is_target_detected_on_frame(): return # no coords to be processed
 
-        (x_act, y_act) = self.get_pstep_target_coords(GET_RAW=False)
+        (x_act, y_act) = self.get_pstep_target_coords()
         if (x_act, y_act) == (-1,-1):
-            self.set_pstep_target_coords(self.get_actual_target_coords(GET_RAW=True), SET_RAW=False) # set filt coords as raw target if it was at default
+            self.set_pstep_target_coords(self.get_actual_target_coords(GET_RAW=True)) # set filt coords as raw target if it was at default
 
-        x_prev, y_prev = self.get_actual_target_coords(GET_RAW=True)
-        x_act, y_act = self.get_pstep_target_coords(GET_RAW=False)
+        x_act, y_act    = self.get_actual_target_coords(GET_RAW=True)
+        x_prev, y_prev  = self.get_pstep_target_coords()
 
-        x_new = alpha * x_act + (1 - alpha) * x_prev
-        y_new = alpha * y_act + (1 - alpha) * y_prev
+        x_new = (w_actual * x_act + w_prev * x_prev)/(w_actual + w_prev)
+        y_new = (w_actual * y_act + w_prev * y_prev)/(w_actual + w_prev)
 
-        return (x_new, y_new)
+        self.set_actual_target_coords(int(x_new), int(y_new), SET_RAW=False)  # update actual filt target value
+        self.set_pstep_target_coords(int(x_new), int(y_new)) # update pstep filt target value

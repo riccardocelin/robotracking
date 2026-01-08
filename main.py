@@ -33,7 +33,7 @@ builtins.DEBUG  = True   # flag for output video display enable (online debug pu
 def main():
 
     print(MODEL_PATH)
-    detector = Detection(MODEL_PATH, FILTER_FLAG = False)
+    detector = Detection(MODEL_PATH, FILTER_FLAG = True)
 
     print("Starting video loop...")
 
