@@ -5,6 +5,7 @@ from pathlib import Path
 import time
 from picamera2 import Picamera2
 import builtins
+import sys
 
 class Detection:
     def __init__(self, CV_MODEL_PRJ_PATH = "",
@@ -41,6 +42,13 @@ class Detection:
         self.actual_raw_results = [-1,-1,-1,-1]
         self.actual_filt_results = [-1,-1,-1,-1]
         self.filter_flag = FILTER_FLAG
+
+        # calibration settings
+        self.calib.is_calibrated = False
+        self.acquisition_time = 10.0 # seconds
+        self.calib.__calib_distances = [0.5, 1, 2] # meters
+        self.calib.__calib_pixel_sizes = [None, None, None] # pixels
+        self.calib.__calib_interp_params = [None, None] # a,b params for distance = a * pixel_size + b
 
     #########################
     # Computer vision methods
@@ -331,3 +339,81 @@ class Detection:
 
         self.set_actual_target_coords(int(x_new), int(y_new), SET_RAW=False)  # update actual filt target value
         self.set_pstep_target_coords(int(x_new), int(y_new)) # update pstep filt target value
+        return (x_new, y_new)
+
+    
+    #########################
+
+    # === CALIBRATIONFUNCTION ===
+    def calibrate_camera(self):
+
+        if not self.calib.is_calibrated:
+            print("Executing Calibrate_camera..")
+
+            for i in range(len(self.calib.__calib_distances)):
+
+                print("-> Press 'c' and place the target at distance %.2f meters to capture calibration frame" %self.calib.__calib_distances[i])
+
+                # check if the user pressed 'c' to capture calibration frames at distance i after 5 seconds
+                key = ''
+                while key != ord('c'):
+                    key = cv2.waitKey(1) & 0xFF # wait for 'c' key press
+                    if key == ord('q'):
+                        print("Calibration aborted by user")
+                        sys.exit(1) # exit program with error code 1 if not calibrated
+
+                # capture frame and process it after 'c' key press
+                # flash led to notify user for frame capture
+
+                # TODO self.flash_led_for_calibration('ON') # turn on led
+
+                start_time = time.time()
+
+                box_sum_width = 0
+                box_sum_height = 0
+
+                iframe = 0
+
+                # exectute frame acquisition and processing for 5 seconds
+                while time.time() - start_time < self.acquisition_time:
+                    frame = self.get_camera_frame() # get frame from camera module
+                    self.object_detection_fcn(self.model, frame)
+
+                    # raw object target found (draw raw center obj and filtered target coords)
+                    if self.is_target_detected_on_frame():
+                        boxes_filt, _, _, _ = self.actual_filt_results
+                        actual_box_width = (boxes_filt[0][3] - boxes_filt[0][1]) * self.get_camera_width() # xmax - xmin (pixel width)
+                        actual_box_height = (boxes_filt[0][2] - boxes_filt[0][0]) * self.get_camera_height() # ymax - ymin (pixel height)
+
+                        print("Calibration frame captured at distance %.2f with pixel size %.2f pixels" % (self.calib.__calib_distances[i], pixel_size))
+                        
+                        box_sum_width += actual_box_width
+                        box_sum_height += actual_box_height
+
+                        iframe += 1
+
+                # compute average pixel size for distance i (detected object is supposed to be squared)
+                avg_box_width = box_sum_width / iframe
+                avg_box_height = box_sum_height / iframe
+
+                self.calib.__calib_pixel_sizes[i] = max(0, int((avg_box_width + avg_box_height) / 2)) # average pixel size
+
+            # compute interpolation params
+            x_pixels = self.calib.__calib_pixel_sizes
+            y_distances = self.calib.__calib_distances
+            a, b = np.polyfit(x_pixels, y_distances, 1) # linear fit
+            self.calib.__calib_interp_params = [a, b]
+
+            print("Calibration completed. Interpolation params: a = %.4f, b = %.4f" % (self.calib.__calib_interp_params[0], self.calib.__calib_interp_params[1]))
+
+            self.calib.is_calibrated = True
+
+        else:
+            print("Using existing calibration parameters")
+
+            # TODO HERE ADD CALIBRATION LOADING JSON OR TXT FILE
+
+            print("Calibration retrieved. Interpolation params: a = %.4f, b = %.4f" % (self.calib.__calib_interp_params[0], self.calib.__calib_interp_params[1]))
+
+            self.calib.is_calibrated = True
+            return
