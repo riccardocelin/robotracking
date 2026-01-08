@@ -16,7 +16,7 @@ import cv2
 import time
 import builtins
 
-from utilities.robotracker import RoboTracker
+from utilities.Detection import Detection
 
 
 # =============================
@@ -29,44 +29,44 @@ builtins.DEBUG  = True   # flag for output video display enable (online debug pu
 # =============================
 
 
-
 # === MAIN LOOP ===
 def main():
 
     print(MODEL_PATH)
-    tracker = RoboTracker(MODEL_PATH)
+    detector = Detection(MODEL_PATH, FILTER_FLAG = False)
 
     print("Starting video loop...")
 
     while True:
         
-        frame = tracker.get_camera_frame() # get frame from camera module
+        frame = detector.get_camera_frame() # get frame from camera module
 
         # get raw classification from cv model
         start_t = time.time()
 
-        tracker.object_detection_fcn(frame)
+        # === OBJECT DETECTION ON FRAME ===
+        detector.object_detection_fcn(frame)
 
         end_t = time.time()
 
         ########################## FOR DEBUG PURPOSE ONLY ###############################
         if builtins.DEBUG:
             print(f"### Inference time for actual frame: {end_t - start_t:.3f} sec")
-            x, y = tracker.get_actual_target_coords(GET_RAW=True)
+            x, y = detector.get_actual_target_coords(GET_RAW=True)
             print(f"### Raw target coordinates x,y: {x}, {y}")
-            x, y = tracker.get_actual_target_coords(GET_RAW=False)
+            x, y = detector.get_actual_target_coords(GET_RAW=False)
             print(f"### Filtered target coordinates x,y: {x}, {y}")
 
             # raw object target found (draw raw center obj and filtered target coords)
-            if tracker.is_target_detected_on_frame():
-                frame = tracker.draw_cross_on_frame(frame, [tracker.get_actual_target_coords(GET_RAW=True), tracker.get_actual_target_coords(GET_RAW=False)], [(255,0,0), (0,255,0)])
+            if detector.is_target_detected_on_frame():
+                frame = detector.draw_cross_on_frame(frame, [detector.get_actual_target_coords(GET_RAW=True), detector.get_actual_target_coords(GET_RAW=False)], [(255,0,0), (0,255,0)])
         
             cv2.imshow("Preview", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)) # cv2 requires bgr frames
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         #################################################################################
 
-        if (tracker.is_target_detected_on_frame() == False):
+        if (detector.is_target_detected_on_frame() == False):
             # keep the actual robot state (and do not move? or continue moving if will work on separated threads)
             # tracker.robot_updated_state = tracker.robot_actual_state
 
@@ -83,10 +83,10 @@ def main():
             # TO DO
             pass
 
-        tracker.reset_actual_target_coord() # clean actual state for the next frame (does not reset pstep target coords)
+        detector.reset_actual_target_coord() # clean actual state for the next frame (does not reset pstep target coords)
 
     # Clean up
-    tracker.__camera.close()
+    detector.__camera.close()
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
