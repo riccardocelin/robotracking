@@ -300,7 +300,8 @@ class Detection:
         if not self.is_target_detected_on_frame(): return # no raw coords to be processed
 
         x_act, y_act = self.get_actual_target_coords(GET_RAW=True)
-        x_prev, y_prev = self.get_pstep_target_coords()
+        x_prev = self.x_pstep_filt_target
+        y_prev = self.y_pstep_filt_target
 
         x_diff = abs(x_act - x_prev)
         y_diff = abs(y_act - y_prev)
@@ -317,12 +318,13 @@ class Detection:
 
         if not self.is_target_detected_on_frame(): return # no coords to be processed
 
-        (x_act, y_act) = self.get_pstep_target_coords()
-        if (x_act, y_act) == (-1,-1):
-            self.set_pstep_target_coords(self.get_actual_target_coords(GET_RAW=True)) # set filt coords as raw target if it was at default
+        if self.get_pstep_target_coords() == (-1,-1):
+            self.set_pstep_target_coords(self.x_actual_raw_target, self.y_actual_raw_target) # set filt coords as raw target if it was at default
 
-        x_act, y_act    = self.get_actual_target_coords(GET_RAW=True)
-        x_prev, y_prev  = self.get_pstep_target_coords()
+        x_act = self.x_actual_raw_target
+        y_act = self.y_actual_raw_target
+        x_prev = self.x_pstep_filt_target
+        y_prev = self.y_pstep_filt_target
 
         x_new = (w_actual * x_act + w_prev * x_prev)/(w_actual + w_prev)
         y_new = (w_actual * y_act + w_prev * y_prev)/(w_actual + w_prev)
