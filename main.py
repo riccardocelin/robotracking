@@ -34,7 +34,8 @@ def main():
 
     print(MODEL_PATH)
     detector = Detection(MODEL_PATH, FILTER_FLAG = True)
-    detector.calibrate_camera() # run camera calibration procedure
+    
+    #detector.calibrate_camera() # run camera calibration procedure
 
     print("Starting video loop...")
 

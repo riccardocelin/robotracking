@@ -23,3 +23,8 @@ def freeze_requirements(pip_path):
     print("Freezing packages...")
     with open("requirements.txt", "w") as f:
         subprocess.run([pip_path, "freeze"], stdout=f, check=True)
+
+        
+if __name__ == "__main__":
+    pip_path = get_pip_path()
+    freeze_requirements(pip_path)
