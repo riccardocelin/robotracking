@@ -20,6 +20,7 @@ from utilities.Detection import Detection
 
 if DEBUG:
     from Test.Camera_simulator import CameraSimulator
+    from Test.Control_simulator import ControlSimulator
 else:
     from utilities.Control import Control
     from utilities.Camera import Camera
@@ -31,6 +32,7 @@ else:
 MODEL_PATH  = "computer_vision/ssd_mobilenet_v2_320x320_coco17_tpu-8/TFLite/prepro_model_nodynamicinput/saved_model" # Path to the saved TensorFlow model
 filter_flag = True
 Control_algorithm = "P"   # control algorithm to be used ("P", "PI", "PID", etc.)
+focal_length = 800  # camera focal length in pixels
 # =============================
 # =============================
 
@@ -42,8 +44,10 @@ def main():
     detector = Detection(MODEL_PATH, FILTER_FLAG = filter_flag)
     if DEBUG:
         camera = CameraSimulator()
+        control_obj = ControlSimulator(Control_type = Control_algorithm, focal_length = focal_length)
     else:
         camera = Camera()
+        control_obj = Control(detector, Control_type = Control_algorithm, focal_length = camera.focal_length)
 
     print("Starting video loop...")
 
@@ -68,7 +72,10 @@ def main():
 
             # raw object target found (draw raw center obj and filtered target coords)
             if detector.is_target_detected_on_frame():
-                frame = detector.draw_cross_on_frame(frame, [detector.get_actual_target_coords(GET_RAW=True), detector.get_actual_target_coords(GET_RAW=False)], [(255,0,0), (0,255,0)])
+                frame = detector.draw_cross_on_frame(frame,
+                [detector.get_actual_target_coords(GET_RAW=True), 
+                detector.get_actual_target_coords(GET_RAW=False)], 
+                [(255,0,0), (0,255,0)])
         
             cv2.imshow("Preview", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)) # cv2 requires bgr frames
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -83,14 +90,20 @@ def main():
             pass
 
         else:
-            # control_obj = Control(detector, Control_type = Control_algorithm)
-            pass
-
+            target_coords = detector.get_actual_target_coords(GET_RAW=False)
+            control_obj.update_target_coords(target_coords[0], target_coords[1])
+            u_z, u_x = control_obj.robot_control()
+            
             # ACTUATION OF CONTROL ACTION
+            if DEBUG:
+                print(f"### Control action: u_z,u_x: {u_z}, {u_x}")
+                camera.set_camera_rotation(rot_z=u_z, rot_x=u_x)
             # # tracker.robot_updated_state = tracker.robot_control(tracker.robot_actual_state, x_target_f2, y_target_f2)
             
-
         detector.reset_actual_target_coord() # clean actual state for the next frame (does not reset pstep target coords)
+        # if DEBUG:
+            # time.sleep(1)
+
 
     # Clean up
     detector.__camera.close()
