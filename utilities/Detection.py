@@ -3,8 +3,8 @@ import tensorflow as tf
 import numpy as np
 from pathlib import Path
 import time
-from picamera2 import Picamera2
-import builtins
+# from picamera2 import Picamera2
+
 
 class Detection:
     def __init__(self, CV_MODEL_PRJ_PATH = "",
@@ -26,7 +26,7 @@ class Detection:
         self.__x_target_size = X_TARGET_SIZE
         self.__y_target_size = Y_TARGET_SIZE
         self.__model = self.__get_cv_model(CV_MODEL_PRJ_PATH)
-        self.__camera = self.__init_Pi_camera()
+        # self.__camera = self.__init_Pi_camera()
         self.x_actual_raw_target = -1
         self.y_actual_raw_target = -1
         self.x_actual_filt_target = -1
@@ -54,36 +54,32 @@ class Detection:
         return tf.saved_model.load(str(model_full_path))
 
     # === INITIALIZE CAMERA ===
-    def __init_Pi_camera(self, FPS = 30):
+    # def __init_Pi_camera(self, FPS = 30):
 
-        picam2 = Picamera2()
-        config = picam2.create_video_configuration(
-                        main={"size": (self.__x_target_size, self.__y_target_size)},
-                        controls={"FrameDurationLimits": (int(1e6 / FPS), int(1e6 / FPS))}
-                    )
-        picam2.configure(config)
-        picam2.start()
-        time.sleep(2)
+    #     picam2 = Picamera2()
+    #     config = picam2.create_video_configuration(
+    #                     main={"size": (self.__x_target_size, self.__y_target_size)},
+    #                     controls={"FrameDurationLimits": (int(1e6 / FPS), int(1e6 / FPS))}
+    #                 )
+    #     picam2.configure(config)
+    #     picam2.start()
+    #     time.sleep(2)
 
-        return picam2
+    #     return picam2
 
-    def get_camera_frame(self):
-        frame_rgb = self.__camera.capture_array()
-        
-        frame = frame_rgb
-        if frame.shape[-1] == 4:
-            frame = frame[..., :3]  # remove eventual transparency from picam2 module
+    def store_camera_frame_info(self, frame):
 
         # store initial frame shape
         self.frame_orig_h, self.frame_orig_w, _ = frame.shape
 
         return frame
+        
 
     # === FRAME PREPROCESSING ===
-    def frame_cv_to_tf_colours(self, frame_bgr):
-        # Convert from BGR (OpenCV) to RGB (TensorFlow)
-        frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-        return frame_rgb
+    # def frame_cv_to_tf_colours(self, frame_bgr):
+    #     # Convert from BGR (OpenCV) to RGB (TensorFlow)
+    #     frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+    #     return frame_rgb
 
 
     # === FRAME PREPROCESSING ===
@@ -106,6 +102,8 @@ class Detection:
 
     # === FRAME CLASSIFICATION ===
     def object_detection_fcn(self, frame):
+        # get frame from camera module
+        self.store_camera_frame_info(frame)
 
         # frame preprocessing for TF inference
         tf_frame_resized_uint8_batched, tf_frame_resized_float32 = self.prepro_frame(frame)

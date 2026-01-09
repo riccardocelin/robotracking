@@ -9,22 +9,28 @@
 #
 # activate virtual env: source venv/bin/activate (in VS terminal)
 
+DEBUG  = True   # flag for output video display enable (online debug purpose)
 
 # ====================================
 # === IMPORT PY PKGS AND FUNCTIONS ===
 import cv2
 import time
-import builtins
 
 from utilities.Detection import Detection
 
+if DEBUG:
+    from Test.Camera_simulator import CameraSimulator
+else:
+    from utilities.Control import Control
+    from utilities.Camera import Camera
+
+
 
 # =============================
-# === GLOBAL VAR DEFINITION ===
-
+# === SETTINGS DEFINITION ===
 MODEL_PATH  = "computer_vision/ssd_mobilenet_v2_320x320_coco17_tpu-8/TFLite/prepro_model_nodynamicinput/saved_model" # Path to the saved TensorFlow model
-builtins.DEBUG  = True   # flag for output video display enable (online debug purpose)
-
+filter_flag = True
+Control_algorithm = "P"   # control algorithm to be used ("P", "PI", "PID", etc.)
 # =============================
 # =============================
 
@@ -33,13 +39,16 @@ builtins.DEBUG  = True   # flag for output video display enable (online debug pu
 def main():
 
     print(MODEL_PATH)
-    detector = Detection(MODEL_PATH, FILTER_FLAG = True)
+    detector = Detection(MODEL_PATH, FILTER_FLAG = filter_flag)
+    if DEBUG:
+        camera = CameraSimulator()
+    else:
+        camera = Camera()
 
     print("Starting video loop...")
 
     while True:
-        
-        frame = detector.get_camera_frame() # get frame from camera module
+        frame = camera.get_camera_frame() # get frame from camera module
 
         # get raw classification from cv model
         start_t = time.time()
@@ -50,7 +59,7 @@ def main():
         end_t = time.time()
 
         ########################## FOR DEBUG PURPOSE ONLY ###############################
-        if builtins.DEBUG:
+        if DEBUG:
             print(f"### Inference time for actual frame: {end_t - start_t:.3f} sec")
             x, y = detector.get_actual_target_coords(GET_RAW=True)
             print(f"### Raw target coordinates x,y: {x}, {y}")
@@ -70,18 +79,16 @@ def main():
             # keep the actual robot state (and do not move? or continue moving if will work on separated threads)
             # tracker.robot_updated_state = tracker.robot_actual_state
 
-            # TO DO
+            # TODO
             pass
 
         else:
-            # update robot state after movement
-            # check if the prev coordinates were valid 
-            # # x_target_f1, y_target_f1 = tracker.detection_filter()
-            # # x_target_f2, y_target_f2 = tracker.detection_flutt_limiter((), tracker.prev_valid_coord):
+            # control_obj = Control(detector, Control_type = Control_algorithm)
+            pass
+
+            # ACTUATION OF CONTROL ACTION
             # # tracker.robot_updated_state = tracker.robot_control(tracker.robot_actual_state, x_target_f2, y_target_f2)
             
-            # TO DO
-            pass
 
         detector.reset_actual_target_coord() # clean actual state for the next frame (does not reset pstep target coords)
 
@@ -91,6 +98,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 
 
 
