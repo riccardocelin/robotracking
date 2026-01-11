@@ -10,7 +10,7 @@ class ControlSimulator:
 
         # Control actual state
         self.control_type = Control_type
-        self.Proportional_gain = 0.1
+        self.Proportional_gain = 2
         self.x_target_px = -1
         self.y_target_px = -1
         self.focal_length = focal_length  # pixels

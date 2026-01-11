@@ -10,7 +10,8 @@ class CameraSimulator:
         # Ball parameters
         self.ball_radius = 20
         self.ball_color = (0, 140, 255)
-        self.ball_pos = np.array([width // 2, height // 2], dtype=float)
+        self.ball_pos = np.array([width // 3, height // 3], dtype=float)
+        self.ball_virtual_pos = self.ball_pos.copy()
         self.ball_vel = np.array([1.0, 0.5])+np.random.randn(2) * 0.5  # random velocity
 
         # Camera rotation state
@@ -33,18 +34,18 @@ class CameraSimulator:
         self.ball_pos += self.ball_vel
 
         # camera rotation → image-plane shift
-        shift_x = self.focal_length * np.tan(self.rot_z)
-        shift_y = self.focal_length * np.tan(self.rot_x)
+        shift_x = self.focal_length * self.rot_z
+        shift_y = self.focal_length * self.rot_x
 
         # apparent position in image
-        img_x = int(self.ball_pos[0] - shift_x)
-        img_y = int(self.ball_pos[1] - shift_y)
+        self.ball_virtual_pos[0] = int(self.ball_virtual_pos[0] - shift_x + self.ball_vel[0])
+        self.ball_virtual_pos[1] = int(self.ball_virtual_pos[1] - shift_y + self.ball_vel[1])
 
         # draw ball only if inside image
-        if 0 <= img_x < self.width and 0 <= img_y < self.height:
+        if 0 <= self.ball_virtual_pos[0] < self.width and 0 <= self.ball_virtual_pos[1] < self.height:
             cv2.circle(
                 frame,
-                (img_x, img_y),
+                (int(self.ball_virtual_pos[0]), int(self.ball_virtual_pos[1])),
                 self.ball_radius,
                 self.ball_color,
                 -1

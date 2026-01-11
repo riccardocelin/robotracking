@@ -10,6 +10,7 @@
 # activate virtual env: source venv/bin/activate (in VS terminal)
 
 DEBUG  = True   # flag for output video display enable (online debug purpose)
+SIMULATION = True
 
 # ====================================
 # === IMPORT PY PKGS AND FUNCTIONS ===
@@ -18,7 +19,7 @@ import time
 
 from utilities.Detection import Detection
 
-if DEBUG:
+if SIMULATION:
     from Test.Camera_simulator import CameraSimulator
     from Test.Control_simulator import ControlSimulator
 else:
@@ -42,7 +43,7 @@ def main():
 
     print(MODEL_PATH)
     detector = Detection(MODEL_PATH, FILTER_FLAG = filter_flag)
-    if DEBUG:
+    if SIMULATION:
         camera = CameraSimulator()
         control_obj = ControlSimulator(Control_type = Control_algorithm, focal_length = focal_length)
     else:
@@ -64,7 +65,7 @@ def main():
 
         ########################## FOR DEBUG PURPOSE ONLY ###############################
         if DEBUG:
-            print(f"### Inference time for actual frame: {end_t - start_t:.3f} sec")
+            print(f"\n### Inference time for actual frame: {end_t - start_t:.3f} sec")
             x, y = detector.get_actual_target_coords(GET_RAW=True)
             print(f"### Raw target coordinates x,y: {x}, {y}")
             x, y = detector.get_actual_target_coords(GET_RAW=False)
@@ -97,12 +98,14 @@ def main():
             # ACTUATION OF CONTROL ACTION
             if DEBUG:
                 print(f"### Control action: u_z,u_x: {u_z}, {u_x}")
+
+            if SIMULATION:
                 camera.set_camera_rotation(rot_z=u_z, rot_x=u_x)
+            # else:
+                # ACTUATION TODO
             # # tracker.robot_updated_state = tracker.robot_control(tracker.robot_actual_state, x_target_f2, y_target_f2)
             
         detector.reset_actual_target_coord() # clean actual state for the next frame (does not reset pstep target coords)
-        # if DEBUG:
-            # time.sleep(1)
 
 
     # Clean up
