@@ -10,12 +10,13 @@
 # activate virtual env: source venv/bin/activate (in VS terminal)
 
 DEBUG  = True   # flag for output video display enable (online debug purpose)
-SIMULATION = True
+SIMULATION = False
 
 # ====================================
 # === IMPORT PY PKGS AND FUNCTIONS ===
 import cv2
 import time
+import RPi.GPIO as GPIO
 
 from utilities.Detection import Detection
 
@@ -26,7 +27,18 @@ else:
     from utilities.Control import Control
     from utilities.Camera import Camera
 
-
+# Stops all warnings from appearing
+GPIO.setwarnings(False)
+# We name all the pins on BOARD mode
+GPIO.setmode(GPIO.BOARD)
+# Set an output for the PWM Signal
+GPIO.setup(16, GPIO.OUT)
+GPIO.setup(18, GPIO.OUT)
+# Set up the PWM on pin #16 at 50Hz
+pwm_z = GPIO.PWM(16, 50)
+pwm_x = GPIO.PWM(18, 50)
+pwm_z.start(0) # Start the servo with 0 duty cycle ( at 0 deg position )
+pwm_x.start(0)
 
 # =============================
 # === SETTINGS DEFINITION ===
@@ -86,8 +98,10 @@ def main():
         if (detector.is_target_detected_on_frame() == False):
             # keep the actual robot state (and do not move? or continue moving if will work on separated threads)
             # tracker.robot_updated_state = tracker.robot_actual_state
-
-            # TODO
+            #u_z = control_obj.prev_uz
+            #u_x = control_obj.prev_ux
+            pwm_z.ChangeDutyCycle(0)
+            pwm_x.ChangeDutyCycle(0)
             pass
 
         else:
@@ -101,9 +115,13 @@ def main():
 
             if SIMULATION:
                 camera.set_camera_rotation(rot_z=u_z, rot_x=u_x)
-            # else:
-                # ACTUATION TODO
-            # # tracker.robot_updated_state = tracker.robot_control(tracker.robot_actual_state, x_target_f2, y_target_f2)
+            else:
+                (u_z, u_x) = control_obj.set_control_action(u_z, u_x)
+
+                pwm_z.ChangeDutyCycle(u_z)
+                pwm_x.ChangeDutyCycle(u_x)
+        print(u_x)
+        print(u_z)
             
         detector.reset_actual_target_coord() # clean actual state for the next frame (does not reset pstep target coords)
 

@@ -5,7 +5,7 @@ from picamera2 import Picamera2
 
 
 class Camera:
-    def __init__(self, X_TARGET_SIZE = 320, Y_TARGET_SIZE = 320):
+    def __init__(self, X_TARGET_SIZE = 320, Y_TARGET_SIZE = 320, focal_length=800):
 
         """
         Tracker contructor function
@@ -19,6 +19,7 @@ class Camera:
         """
 
         # detection settings
+        self.focal_length = focal_length
         self.__x_target_size = X_TARGET_SIZE
         self.__y_target_size = Y_TARGET_SIZE
         self.__camera = self.__init_Pi_camera()
