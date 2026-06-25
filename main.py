@@ -18,14 +18,14 @@ import cv2
 import time
 import RPi.GPIO as GPIO
 
-from utilities.Detection import Detection
+from src.Detection import Detection
 
 if SIMULATION:
-    from Test.Camera_simulator import CameraSimulator
-    from Test.Control_simulator import ControlSimulator
+    from src.simulators.CameraSimulator import CameraSimulator
+    from src.simulators.ControlSimulator import ControlSimulator
 else:
-    from utilities.Control import Control
-    from utilities.Camera import Camera
+    from src.Control import Control
+    from src.Camera import Camera
 
 # Stops all warnings from appearing
 GPIO.setwarnings(False)
@@ -42,7 +42,6 @@ pwm_x.start(0)
 
 # =============================
 # === SETTINGS DEFINITION ===
-MODEL_PATH  = "computer_vision/ssd_mobilenet_v2_320x320_coco17_tpu-8/TFLite/prepro_model_nodynamicinput/saved_model" # Path to the saved TensorFlow model
 filter_flag = True
 Control_algorithm = "P"   # control algorithm to be used ("P", "PI", "PID", etc.)
 focal_length = 800  # camera focal length in pixels
@@ -53,8 +52,7 @@ focal_length = 800  # camera focal length in pixels
 # === MAIN LOOP ===
 def main():
 
-    print(MODEL_PATH)
-    detector = Detection(MODEL_PATH, FILTER_FLAG = filter_flag)
+    detector = Detection(FILTER_FLAG = filter_flag)
     if SIMULATION:
         camera = CameraSimulator()
         control_obj = ControlSimulator(Control_type = Control_algorithm, focal_length = focal_length)
