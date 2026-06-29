@@ -9,22 +9,42 @@
 #
 # activate virtual env: source venv/bin/activate (in VS terminal)
 
+DEBUG  = True   # flag for output video display enable (online debug purpose)
+SIMULATION = False
 
 # ====================================
 # === IMPORT PY PKGS AND FUNCTIONS ===
 import cv2
 import time
-import builtins
+import RPi.GPIO as GPIO
 
-from utilities.Detection import Detection
+from src.Detection import Detection
 
+if SIMULATION:
+    from src.simulators.CameraSimulator import CameraSimulator
+    from src.simulators.ControlSimulator import ControlSimulator
+else:
+    from src.Control import Control
+    from src.Camera import Camera
+
+# Stops all warnings from appearing
+GPIO.setwarnings(False)
+# We name all the pins on BOARD mode
+GPIO.setmode(GPIO.BOARD)
+# Set an output for the PWM Signal
+GPIO.setup(16, GPIO.OUT)
+GPIO.setup(18, GPIO.OUT)
+# Set up the PWM on pin #16 at 50Hz
+pwm_z = GPIO.PWM(16, 50)
+pwm_x = GPIO.PWM(18, 50)
+pwm_z.start(0) # Start the servo with 0 duty cycle ( at 0 deg position )
+pwm_x.start(0)
 
 # =============================
-# === GLOBAL VAR DEFINITION ===
-
-MODEL_PATH  = "computer_vision/ssd_mobilenet_v2_320x320_coco17_tpu-8/TFLite/prepro_model_nodynamicinput/saved_model" # Path to the saved TensorFlow model
-builtins.DEBUG  = True   # flag for output video display enable (online debug purpose)
-
+# === SETTINGS DEFINITION ===
+filter_flag = True
+Control_algorithm = "P"   # control algorithm to be used ("P", "PI", "PID", etc.)
+focal_length = 800  # camera focal length in pixels
 # =============================
 # =============================
 
@@ -32,16 +52,18 @@ builtins.DEBUG  = True   # flag for output video display enable (online debug pu
 # === MAIN LOOP ===
 def main():
 
-    print(MODEL_PATH)
-    detector = Detection(MODEL_PATH, FILTER_FLAG = True)
-    
-    #detector.calibrate_camera() # run camera calibration procedure
+    detector = Detection(FILTER_FLAG = filter_flag)
+    if SIMULATION:
+        camera = CameraSimulator()
+        control_obj = ControlSimulator(Control_type = Control_algorithm, focal_length = focal_length)
+    else:
+        camera = Camera()
+        control_obj = Control(detector, Control_type = Control_algorithm, focal_length = camera.focal_length)
 
     print("Starting video loop...")
 
     while True:
-        
-        frame = detector.get_camera_frame() # get frame from camera module
+        frame = camera.get_camera_frame() # get frame from camera module
 
         # get raw classification from cv model
         start_t = time.time()
@@ -52,8 +74,8 @@ def main():
         end_t = time.time()
 
         ########################## FOR DEBUG PURPOSE ONLY ###############################
-        if builtins.DEBUG:
-            print(f"### Inference time for actual frame: {end_t - start_t:.3f} sec")
+        if DEBUG:
+            print(f"\n### Inference time for actual frame: {end_t - start_t:.3f} sec")
             x, y = detector.get_actual_target_coords(GET_RAW=True)
             print(f"### Raw target coordinates x,y: {x}, {y}")
             x, y = detector.get_actual_target_coords(GET_RAW=False)
@@ -61,7 +83,10 @@ def main():
 
             # raw object target found (draw raw center obj and filtered target coords)
             if detector.is_target_detected_on_frame():
-                frame = detector.draw_cross_on_frame(frame, [detector.get_actual_target_coords(GET_RAW=True), detector.get_actual_target_coords(GET_RAW=False)], [(255,0,0), (0,255,0)])
+                frame = detector.draw_cross_on_frame(frame,
+                [detector.get_actual_target_coords(GET_RAW=True), 
+                detector.get_actual_target_coords(GET_RAW=False)], 
+                [(255,0,0), (0,255,0)])
         
             cv2.imshow("Preview", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)) # cv2 requires bgr frames
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -71,21 +96,33 @@ def main():
         if (detector.is_target_detected_on_frame() == False):
             # keep the actual robot state (and do not move? or continue moving if will work on separated threads)
             # tracker.robot_updated_state = tracker.robot_actual_state
-
-            # TO DO
+            #u_z = control_obj.prev_uz
+            #u_x = control_obj.prev_ux
+            pwm_z.ChangeDutyCycle(0)
+            pwm_x.ChangeDutyCycle(0)
             pass
 
         else:
-            # update robot state after movement
-            # check if the prev coordinates were valid 
-            # # x_target_f1, y_target_f1 = tracker.detection_filter()
-            # # x_target_f2, y_target_f2 = tracker.detection_flutt_limiter((), tracker.prev_valid_coord):
-            # # tracker.robot_updated_state = tracker.robot_control(tracker.robot_actual_state, x_target_f2, y_target_f2)
+            target_coords = detector.get_actual_target_coords(GET_RAW=False)
+            control_obj.update_target_coords(target_coords[0], target_coords[1])
+            u_z, u_x = control_obj.robot_control()
             
-            # TO DO
-            pass
+            # ACTUATION OF CONTROL ACTION
+            if DEBUG:
+                print(f"### Control action: u_z,u_x: {u_z}, {u_x}")
 
+            if SIMULATION:
+                camera.set_camera_rotation(rot_z=u_z, rot_x=u_x)
+            else:
+                (u_z, u_x) = control_obj.set_control_action(u_z, u_x)
+
+                pwm_z.ChangeDutyCycle(u_z)
+                pwm_x.ChangeDutyCycle(u_x)
+        print(u_x)
+        print(u_z)
+            
         detector.reset_actual_target_coord() # clean actual state for the next frame (does not reset pstep target coords)
+
 
     # Clean up
     detector.__camera.close()
@@ -93,6 +130,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 
 
 

@@ -3,3 +3,4 @@ venv
 offline_config.json
 *.pyc
 computer_vision/ssd_mobilenet_v2_320x320_coco17_tpu-8/TFLite/coco_subsampl_val2017
+tflitetests
