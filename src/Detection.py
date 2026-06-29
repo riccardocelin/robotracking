@@ -1,12 +1,13 @@
 import cv2
 import numpy as np
 import requests
+import time
 
 
 class Detection:
     def __init__(self,
                  X_TARGET_SIZE = 320, Y_TARGET_SIZE = 320,
-                 CLASS_FILTER = 37, CLASSIFIC_TH = 0.2, FILTER_OBJ_NR = 1, FILTER_FLAG = False):
+                 CLASS_FILTER = 37, CLASSIFIC_TH = 0.1, FILTER_OBJ_NR = 1, FILTER_FLAG = False):
 
         """
         Tracker contructor function
@@ -15,7 +16,7 @@ class Detection:
         X_TARGET_SIZE = 320     # target x size based on model training - mobile net training x size
         Y_TARGET_SIZE = 320     # target y size based on model training - mobile net training y size
         CLASS_FILTER  = 37      # class filter on classification output
-        CLASSIFIC_TH  = 0.2     # treshold on classification score
+        CLASSIFIC_TH  = 0.1     # treshold on classification score
         FILTER_OBJ_NR = 1       # filter on detected object number with higher score
         """
 
@@ -63,7 +64,8 @@ class Detection:
         x_target_size = self.__x_target_size
         y_target_size = self.__y_target_size
 
-        frame = cv2.resize(frame, (x_target_size, y_target_size)) # resize frame to model input size
+        if frame.shape[0] != x_target_size and frame.shape[1] != y_target_size:
+            frame = cv2.resize(frame, (x_target_size, y_target_size)) # resize frame to model input size
 
         h_input_frame, w_input_frame, c_input_frame = frame.shape
 
@@ -78,7 +80,11 @@ class Detection:
             "filter_on_detect_nr": self.filter_on_detect_nr
         }
 
+        start_t1 = time.time()
         response = requests.post("http://127.0.0.1:8000/detect", data = frame.tobytes(), params = params)
+        end_t1 = time.time()
+        time_inf = end_t1-start_t1
+        print(f"time inference inside Detection.py: {time_inf}")
 
         results = response.json()
 
