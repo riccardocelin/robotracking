@@ -1,35 +1,29 @@
-import tflite_runtime.interpreter as tflite
+import onnxruntime as ort
 from pathlib import Path
 import numpy as np
 import time
 
-def load_lite_model_signature(model_path_in_prj):
-    
-    print("-- computer vision model loading")
-    current_folder = Path(__file__).resolve().parent
-    model_full_path = current_folder.parent / model_path_in_prj
+class ONNXModel:
 
-    # Load TFLite model
-    interpreter = tflite.Interpreter(
-        model_path=str(model_full_path / "model.tflite"),
-        num_threads=4
-    )
+    def __init__(self, model_path):
 
-    print("signature list:\n")
-    print(interpreter.get_signature_list())
-    print("\nget_input_details:\n")
-    print(interpreter.get_input_details())
-    print("\nget_output_details:\n")
-    print(interpreter.get_output_details())
+        self.session = ort.InferenceSession(model_path)
 
-    interpreter.allocate_tensors()
+        self.input_name = self.session.get_inputs()[0].name
+        self.output_names = [o.name for o in self.session.get_outputs()]
 
-    # Get signature runner
-    infer = interpreter.get_signature_runner(
-        "serving_default"
-    )
+    def __call__(self, input_tensor):
 
-    return infer
+        # Ensure correct dtype (critical)
+        #input_tensor = input_tensor.astype(np.uint8)
+
+        outputs = self.session.run(
+            self.output_names,
+            {self.input_name: input_tensor}
+        )
+
+        # Return TF-like dict (this is what your code expects)
+        return dict(zip(self.output_names, outputs))
 
 
 def object_detection_lite_fcn(model_infer_fcn, prepro_frame, params):

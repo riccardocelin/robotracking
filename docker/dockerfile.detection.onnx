@@ -1,0 +1,18 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+COPY app/detection_service ./detection_service
+
+ENV PYTHONPATH=/app
+
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir \
+        onnxruntime \
+        numpy \
+        fastapi \
+        uvicorn \
+        pydantic
+
+EXPOSE 8000
+
+CMD ["uvicorn", "detection_service.api_onnx:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Body
-import detection_service.detection_lite as dt
+import detection_service.detection_onnx as dt
 from pydantic import BaseModel
 import numpy as np
 
@@ -14,8 +14,8 @@ class DetectionParams(BaseModel):
     filter_on_detect_nr: int = 1
 
 # load CV model
-MODEL_PATH = "detection_service/model_tflite"
-model_infer_fcn = dt.load_lite_model_signature(MODEL_PATH)
+MODEL_PATH = "detection_service/model_onnx/model.onnx"
+model_infer_fcn = dt.ONNXModel(MODEL_PATH)
 
 app = FastAPI()
 
