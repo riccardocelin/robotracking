@@ -58,7 +58,7 @@ def main():
         control_obj = ControlSimulator(Control_type = Control_algorithm, focal_length = focal_length)
     else:
         camera = Camera()
-        control_obj = Control(detector, Control_type = Control_algorithm, focal_length = camera.focal_length)
+        control_obj = Control(Control_type = Control_algorithm, focal_length = camera.focal_length)
 
     print("Starting video loop...")
 
@@ -88,7 +88,7 @@ def main():
                 detector.get_actual_target_coords(GET_RAW=False)], 
                 [(255,0,0), (0,255,0)])
         
-            cv2.imshow("Preview", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)) # cv2 requires bgr frames
+            cv2.imshow("Preview", frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         #################################################################################
@@ -118,8 +118,6 @@ def main():
 
                 pwm_z.ChangeDutyCycle(u_z)
                 pwm_x.ChangeDutyCycle(u_x)
-        print(u_x)
-        print(u_z)
             
         detector.reset_actual_target_coord() # clean actual state for the next frame (does not reset pstep target coords)
 

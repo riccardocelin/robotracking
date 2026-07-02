@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import requests
-import time
 
 
 class Detection:
@@ -80,11 +79,7 @@ class Detection:
             "filter_on_detect_nr": self.filter_on_detect_nr
         }
 
-        start_t1 = time.time()
         response = requests.post("http://127.0.0.1:8000/detect", data = frame.tobytes(), params = params)
-        end_t1 = time.time()
-        time_inf = end_t1-start_t1
-        print(f"time inference inside Detection.py: {time_inf}")
 
         results = response.json()
 
@@ -119,11 +114,6 @@ class Detection:
     def reset_actual_target_coord(self, x=-1, y=-1):
         self.set_actual_target_coords(SET_RAW = True)
         self.set_actual_target_coords(SET_RAW = False)
-
-    
-    def get_classification_params(self):
-        # classif_results = [boxes, scores, classes, num_detections]
-        return self.classification_filter_param
 
 
     def is_target_detected_on_frame(self):

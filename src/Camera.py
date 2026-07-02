@@ -1,57 +1,52 @@
 import cv2
-import numpy as np
 import time
 from picamera2 import Picamera2
 
 
 class Camera:
-    def __init__(self, X_TARGET_SIZE = 320, Y_TARGET_SIZE = 320, focal_length=800):
+    def __init__(self, width=320, height=320, fps=30, focal_length=800):
 
-        """
-        Tracker contructor function
-
-        # -- default params for sport ball deteciton on mobile net sdd cv model
-        X_TARGET_SIZE = 320     # target x size based on model training - mobile net training x size
-        Y_TARGET_SIZE = 320     # target y size based on model training - mobile net training y size
-        CLASS_FILTER  = 37      # class filter on classification output
-        CLASSIFIC_TH  = 0.2     # treshold on classification score
-        FILTER_OBJ_NR = 1       # filter on detected object number with higher score
-        """
-
-        # detection settings
+        # Camera parameters
+        self.width = width
+        self.height = height
         self.focal_length = focal_length
-        self.__x_target_size = X_TARGET_SIZE
-        self.__y_target_size = Y_TARGET_SIZE
-        self.__camera = self.__init_Pi_camera()
 
-    #########################
-    # Computer vision methods
+        self._camera = self._init_camera(fps)
 
-    # === INITIALIZE CAMERA ===
-    def __init_Pi_camera(self, FPS = 30):
-
+    def _init_camera(self, fps):
         picam2 = Picamera2()
+
         config = picam2.create_video_configuration(
-                        main={"size": (self.__x_target_size, self.__y_target_size)},
-                        controls={"FrameDurationLimits": (int(1e6 / FPS), int(1e6 / FPS))}
-                    )
+            main={
+                "size": (self.width, self.height),
+                "format": "RGB888"
+            },
+            controls={
+                "FrameDurationLimits": (
+                    int(1e6 / fps),
+                    int(1e6 / fps)
+                )
+            }
+        )
+
         picam2.configure(config)
         picam2.start()
-        time.sleep(2)
+
+        time.sleep(2)  # camera warm-up
 
         return picam2
 
     def get_camera_frame(self):
-        frame_rgb = self.__camera.capture_array()
-        
-        frame = frame_rgb
-        if frame.shape[-1] == 4:
-            frame = frame[..., :3]  # remove eventual transparency from picam2 module
+        # Always copy to avoid buffer issues
+        frame = self._camera.capture_array("main").copy()
+
+        # Safety: remove alpha if present (rare in this config)
+        if frame.ndim == 3 and frame.shape[-1] == 4:
+            frame = frame[:, :, :3]
 
         return frame
-        
-    # === FRAME PREPROCESSING ===
-    def frame_cv_to_tf_colours(self, frame_bgr):
-        # Convert from BGR (OpenCV) to RGB (TensorFlow)
-        frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-        return frame_rgb
+
+    @staticmethod
+    def frame_cv_to_tf_colours(frame_bgr):
+        # OpenCV BGR -> RGB (for ML models)
+        return cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
