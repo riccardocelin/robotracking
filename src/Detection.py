@@ -81,6 +81,9 @@ class Detection:
 
         response = requests.post("http://127.0.0.1:8000/detect", data = frame.tobytes(), params = params)
 
+        print(response.status_code)
+        print(response.text)
+
         results = response.json()
 
         self.set_actual_target_coords(results["object_center"][0], results["object_center"][1], SET_RAW=True)

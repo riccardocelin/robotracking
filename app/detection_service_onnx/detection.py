@@ -1,5 +1,4 @@
 import onnxruntime as ort
-from pathlib import Path
 import numpy as np
 import time
 
@@ -28,17 +27,10 @@ class ONNXModel:
 
 def object_detection_lite_fcn(model_infer_fcn, prepro_frame, params):
 
-    print(prepro_frame.shape)
-    print(prepro_frame.dtype)
-    
-    s = time.time()
     # Run inference
     outputs = model_infer_fcn(
         input_tensor=prepro_frame
     )
-    e = time.time()
-    infer = e-s
-    print(f"inference api: {infer}")
 
     # Print outputs
     for name, value in outputs.items():
@@ -53,14 +45,11 @@ def object_detection_lite_fcn(model_infer_fcn, prepro_frame, params):
 
     mask = classes == target_class
 
-
     box = [-1,-1,-1,-1]
     score = -1
     object_center = [-1,-1]
     detected = False
     if np.any(mask):
-
-        print("sono entrato nel any(mask)")
 
         valid_scores = scores[mask]
 
@@ -68,6 +57,7 @@ def object_detection_lite_fcn(model_infer_fcn, prepro_frame, params):
 
         score = valid_scores[best_score_idx]
 
+        print(f"target_class: {target_class}")
         print(f"best score idx: {best_score_idx}")
         print(f"best score: {score}")
         print(f"params.classif_th: {params.classif_th}")
@@ -78,8 +68,6 @@ def object_detection_lite_fcn(model_infer_fcn, prepro_frame, params):
 
             detected = True
             box = boxes[best_score_idx]
-
-            print(f"box: {box}")
 
             object_center = get_object_center_for_tracking(box, params)
 

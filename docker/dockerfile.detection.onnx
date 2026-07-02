@@ -1,7 +1,7 @@
 FROM python:3.10-slim
 
 WORKDIR /app
-COPY app/detection_service ./detection_service
+COPY app/detection_service_onnx ./detection_service_onnx
 
 ENV PYTHONPATH=/app
 
@@ -15,4 +15,4 @@ RUN pip install --upgrade pip && \
 
 EXPOSE 8000
 
-CMD ["uvicorn", "detection_service.api_onnx:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "detection_service_onnx.api:app", "--host", "0.0.0.0", "--port", "8000"]

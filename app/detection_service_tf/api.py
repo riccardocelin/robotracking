@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Body
-import detection_service.detection_onnx as dt
+import detection_service_tf.detection as dt
 from pydantic import BaseModel
 import numpy as np
 
@@ -14,8 +14,8 @@ class DetectionParams(BaseModel):
     filter_on_detect_nr: int = 1
 
 # load CV model
-MODEL_PATH = "detection_service/model_onnx/model.onnx"
-model_infer_fcn = dt.ONNXModel(MODEL_PATH)
+MODEL_PATH = "detection_service_tf/saved_model"
+model_infer_fcn = dt.load_model_signature(MODEL_PATH)
 
 app = FastAPI()
 
@@ -63,7 +63,7 @@ def detect(
     # Add batch dimension
     frame = np.expand_dims(frame, axis=0)
 
-    results = dt.object_detection_lite_fcn(model_infer_fcn, frame, params)
+    results = dt.object_detection_fcn(model_infer_fcn, frame, params)
 
     return {
         "detected": results["detected"],
